@@ -1,12 +1,12 @@
 use ark_bn254::Fr;
 
-struct Account {
+pub struct Account {
     pub_key_hash: Fr,
     balance: u64,
     nonce: u64
 }
 
-struct Transaction{
+pub struct Transaction{
     // index in the merkle tree
 
     sender_idx: usize,
