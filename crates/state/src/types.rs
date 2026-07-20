@@ -1,9 +1,9 @@
 use ark_bn254::Fr;
 
 pub struct Account {
-    pub_key_hash: Fr,
-    balance: u64,
-    nonce: u64
+    pub pub_key_hash: Fr,
+    pub balance: u64,
+    pub nonce: u64
 }
 
 pub struct Transaction{

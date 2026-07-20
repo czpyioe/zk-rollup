@@ -2,6 +2,7 @@ use ark_bn254::Fr;
 use ark_crypto_primitives::sponge::{
     poseidon::{find_poseidon_ark_and_mds, PoseidonConfig}
 };
+use crate::types::Account;
 
 use ark_crypto_primitives::crh::{poseidon::CRH, CRHScheme};
 
@@ -35,6 +36,11 @@ pub fn hash_left_right(left: Fr, right: Fr) -> Fr {
     CRH::<Fr>::evaluate(&cfg, vec![left, right]).unwrap()
 }
 
+pub fn hash_account(account: &Account) -> Fr{
+    let cfg = poseidon_config();
+    CRH::<Fr>::evaluate(&cfg, vec![account.pub_key_hash, Fr::from(account.balance), Fr::from(account.nonce)]).unwrap()
+}
+
 
 #[cfg(test)]
 mod tests {
@@ -66,6 +72,18 @@ mod tests {
         let l = Fr::from(42);
         let r = Fr::from(99);
         assert_ne!(hash_left_right(l, r), hash_left_right(r, r));
+    }
+
+
+    #[test]
+    fn test_hash_account() {
+        let acc = Account{
+            pub_key_hash : Fr::from(1),
+            balance: 1000,
+            nonce: 0
+        };
+
+        assert_eq!(hash_account(&acc), hash_account(&acc));
     }
 
 }
