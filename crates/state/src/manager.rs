@@ -1,6 +1,6 @@
 use crate::merkle::MerkleTree;
 use crate::types::{Account, Transaction,Error};
-use crate::primitives::compute_poseidon_hash;
+use crate::primitives::{compute_poseidon_hash, hash_account};
 
 
 pub struct StateManager {
@@ -34,7 +34,13 @@ impl StateManager {
         sender.balance -= tx.amount;
         receiver.balance  += tx.amount;
 
+        let sender_new_account_hash = hash_account(&sender);
+        let receiver_new_account_hash = hash_account(&receiver);
 
+        self.merkle_tree.update(tx.sender_idx, sender_new_account_hash)?;
+        self.accounts[tx.sender_idx] = sender;
+        self.merkle_tree.update(tx.receiver_idx, receiver_new_account_hash)?;
+        self.accounts[tx.receiver_idx] = receiver;
 
         Ok(())
     }
