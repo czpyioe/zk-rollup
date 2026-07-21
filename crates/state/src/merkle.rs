@@ -1,6 +1,7 @@
 use ark_bn254::Fr;
 use ark_ff::Zero;
 use crate::primitives;
+use crate::types::Error;
 
 pub struct MerkleTree{
     depth: usize,
@@ -51,6 +52,24 @@ impl MerkleTree{
 
         self.next_index += 1;
         index
+    }
+
+    pub fn update(&mut self, index: usize, new_account_hash: Fr) -> Result<(),Error>{
+        if index >= self.nodes[0].len(){
+            return Err(Error::InvalidIndex);
+        }
+
+        self.nodes[0][index] = new_account_hash;
+
+        let mut parent_index = index / 2;
+        for level in 1..=self.depth {
+            self.nodes[level][parent_index] = primitives::hash_left_right(
+                self.nodes[level - 1][parent_index * 2],
+                self.nodes[level - 1][parent_index * 2 + 1],
+            );
+            parent_index /= 2;
+        }
+        Ok(())
     }
 
     pub fn root(&self) -> Fr {

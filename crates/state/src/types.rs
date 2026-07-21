@@ -22,3 +22,11 @@ pub struct Transaction{
     pub amount: u64,
     pub nonce: u64
 }
+
+
+pub enum Error{
+    InvalidSecretKey,
+    InvalidNonce,
+    InsufficientBalance,
+    InvalidIndex
+}

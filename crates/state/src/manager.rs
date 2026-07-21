@@ -1,13 +1,7 @@
 use crate::merkle::MerkleTree;
-use crate::types::{Account, Transaction};
+use crate::types::{Account, Transaction,Error};
 use crate::primitives::compute_poseidon_hash;
 
-enum Error{
-    InvalidSecretKey,
-    InvalidNonce,
-    InsufficientBalance,
-    InvalidIndex
-}
 
 pub struct StateManager {
     merkle_tree: MerkleTree,
@@ -40,7 +34,7 @@ impl StateManager {
         sender.balance -= tx.amount;
         receiver.balance  += tx.amount;
 
-        
+
 
         Ok(())
     }
