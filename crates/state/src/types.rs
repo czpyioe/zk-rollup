@@ -23,7 +23,7 @@ pub struct Transaction{
     pub nonce: u64
 }
 
-
+#[derive(Debug)]
 pub enum Error{
     InvalidSecretKey,
     InvalidNonce,

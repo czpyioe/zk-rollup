@@ -198,4 +198,26 @@ mod tests {
         assert!(tree.verify_proof(&tree.generate_proof(idx1)));
         assert!(tree.verify_proof(&tree.generate_proof(idx2)));
     }
+
+    #[test]
+    fn test_update_changes_root_and_proof() {
+        let mut tree = MerkleTree::new(4);
+        let idx = tree.insert(Fr::from(1));
+        let root_before = tree.root();
+
+        let new_leaf = Fr::from(42);
+        tree.update(idx, new_leaf).unwrap();
+
+        assert_ne!(tree.root(), root_before);
+        assert_eq!(tree.nodes[0][idx], new_leaf);
+        assert!(tree.verify_proof(&tree.generate_proof(idx)));
+    }
+
+    #[test]
+    fn test_update_out_of_bounds_returns_error() {
+        let mut tree = MerkleTree::new(4);
+        let out_of_bounds = 1 << 4;
+
+        assert!(tree.update(out_of_bounds, Fr::from(1)).is_err());
+    }
 }
