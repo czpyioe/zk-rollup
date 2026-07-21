@@ -1,5 +1,6 @@
 use ark_bn254::Fr;
 
+#[derive(Debug, Copy, Clone)]
 pub struct Account {
     pub pub_key_hash: Fr,
     pub balance: u64,
