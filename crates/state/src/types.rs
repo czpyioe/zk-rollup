@@ -8,16 +8,16 @@ pub struct Account {
 
 pub struct Transaction{
     // index in the merkle tree
-
-    sender_idx: usize,
+    pub sender_idx: usize,
     // not possible on real rollup
     // secret key is in the tx strcut to avoid ECDSA verification in the circuit
+    pub sender_secret_key: Fr,
 
-    sender_secret_key: Fr,
 
     // index in the merkle tree
-    receiver_idx: usize,
+    pub receiver_idx: usize,
 
-    amount: u64,
-    nonce: u64
+
+    pub amount: u64,
+    pub nonce: u64
 }
