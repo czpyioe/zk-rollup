@@ -64,3 +64,109 @@ impl StateManager {
     }
 
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ark_bn254::Fr;
+    use crate::primitives::compute_poseidon_hash;
+
+    fn make_account(sk: u64, balance: u64) -> (Fr, Account) {
+        let secret_key = Fr::from(sk);
+        let account = Account {
+            pub_key_hash: compute_poseidon_hash(secret_key),
+            balance,
+            nonce: 0,
+        };
+        (secret_key, account)
+    }
+
+    fn setup() -> (StateManager, Fr, Fr) {
+        let mut state = StateManager::new(4);
+        let (alice_sk, alice) = make_account(1, 1000);
+        let (bob_sk, bob) = make_account(2, 500);
+        state.add_account(alice).unwrap();
+        state.add_account(bob).unwrap();
+        (state, alice_sk, bob_sk)
+    }
+
+    #[test]
+    fn test_valid_tx_updates_balances_and_root() {
+        let (mut state, alice_sk, _) = setup();
+        let root_before = state.merkle_tree.root();
+
+        let tx = Transaction { sender_idx: 0, receiver_idx: 1, amount: 100, nonce: 0, sender_secret_key: alice_sk };
+        state.process_tx(&tx).unwrap();
+
+        assert_eq!(state.accounts[0].balance, 900);
+        assert_eq!(state.accounts[1].balance, 600);
+        assert_eq!(state.accounts[0].nonce, 1);
+        assert_ne!(state.merkle_tree.root(), root_before);
+    }
+
+    #[test]
+    fn test_invalid_secret_key_rejected() {
+        let (mut state, _, _) = setup();
+
+        let tx = Transaction { sender_idx: 0, receiver_idx: 1, amount: 100, nonce: 0, sender_secret_key: Fr::from(99) };
+        let err = state.process_tx(&tx).unwrap_err();
+
+        assert!(matches!(err, Error::InvalidSecretKey));
+    }
+
+    #[test]
+    fn test_invalid_nonce_rejected() {
+        let (mut state, alice_sk, _) = setup();
+
+        let tx = Transaction { sender_idx: 0, receiver_idx: 1, amount: 100, nonce: 99, sender_secret_key: alice_sk };
+        let err = state.process_tx(&tx).unwrap_err();
+
+        assert!(matches!(err, Error::InvalidNonce));
+    }
+
+    #[test]
+    fn test_insufficient_balance_rejected() {
+        let (mut state, alice_sk, _) = setup();
+
+        let tx = Transaction { sender_idx: 0, receiver_idx: 1, amount: 9999, nonce: 0, sender_secret_key: alice_sk };
+        let err = state.process_tx(&tx).unwrap_err();
+
+        assert!(matches!(err, Error::InsufficientBalance));
+    }
+
+    #[test]
+    fn test_invalid_index_rejected() {
+        let (mut state, alice_sk, _) = setup();
+
+        let tx = Transaction { sender_idx: 0, receiver_idx: 99, amount: 100, nonce: 0, sender_secret_key: alice_sk };
+        let err = state.process_tx(&tx).unwrap_err();
+
+        assert!(matches!(err, Error::InvalidIndex));
+    }
+
+    #[test]
+    fn test_nonce_increments_after_each_tx() {
+        let (mut state, alice_sk, _) = setup();
+
+        let tx1 = Transaction { sender_idx: 0, receiver_idx: 1, amount: 100, nonce: 0, sender_secret_key: alice_sk };
+        state.process_tx(&tx1).unwrap();
+        assert_eq!(state.accounts[0].nonce, 1);
+
+        let tx2 = Transaction { sender_idx: 0, receiver_idx: 1, amount: 100, nonce: 1, sender_secret_key: alice_sk };
+        state.process_tx(&tx2).unwrap();
+        assert_eq!(state.accounts[0].nonce, 2);
+    }
+
+    #[test]
+    fn test_add_account_beyond_capacity_rejected() {
+        let mut state = StateManager::new(2); // depth 2 = 4 leaves max
+        for i in 0..4 {
+            let (_, account) = make_account(i, 100);
+            state.add_account(account).unwrap();
+        }
+        let (_, extra) = make_account(99, 100);
+        let err = state.add_account(extra).unwrap_err();
+
+        assert!(matches!(err, Error::MerkleTreeFull));
+    }
+}
