@@ -9,6 +9,14 @@ pub struct StateManager {
 }
 
 impl StateManager {
+    pub fn new(merkle_depth: usize) -> Self{
+        Self {
+            merkle_tree: MerkleTree::new(merkle_depth),
+            accounts : Vec::new()
+        }
+    }
+
+
     pub fn process_tx(&mut self, tx: &Transaction) -> Result<(),Error>{
         // check if tx is possible before processing
         if tx.sender_idx >= self.accounts.len() || tx.receiver_idx >= self.accounts.len(){
