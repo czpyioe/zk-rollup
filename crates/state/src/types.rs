@@ -28,5 +28,6 @@ pub enum Error{
     InvalidSecretKey,
     InvalidNonce,
     InsufficientBalance,
-    InvalidIndex
+    InvalidIndex,
+    MerkleTreeFull
 }

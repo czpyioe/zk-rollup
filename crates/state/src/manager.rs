@@ -16,6 +16,16 @@ impl StateManager {
         }
     }
 
+    pub fn add_account(&mut self, account: Account) -> Result<usize,Error>{
+        if self.accounts.len()>= 1 << self.merkle_tree.depth{
+            return Err(Error::MerkleTreeFull);
+        }
+
+        let idx = self.merkle_tree.insert(hash_account(&account));
+        self.accounts.push(account);
+        Ok(idx)
+    }
+
 
     pub fn process_tx(&mut self, tx: &Transaction) -> Result<(),Error>{
         // check if tx is possible before processing

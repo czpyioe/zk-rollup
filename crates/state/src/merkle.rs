@@ -4,7 +4,7 @@ use crate::primitives;
 use crate::types::Error;
 
 pub struct MerkleTree{
-    depth: usize,
+    pub depth: usize,
     nodes : Vec<Vec<Fr>>,
     next_index: usize
 }
