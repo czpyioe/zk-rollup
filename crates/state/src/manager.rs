@@ -1,6 +1,6 @@
-use crate::merkle::MerkleTree;
-use crate::types::{Account, Transaction,Error};
-use crate::primitives::{compute_poseidon_hash, hash_account};
+use crypto_primitives::merkle::MerkleTree;
+use crypto_primitives::types::{Account, Transaction,Error};
+use crypto_primitives::hash::{compute_poseidon_hash, hash_account};
 
 
 pub struct StateManager {
@@ -69,7 +69,7 @@ impl StateManager {
 mod tests {
     use super::*;
     use ark_bn254::Fr;
-    use crate::primitives::compute_poseidon_hash;
+    use crypto_primitives::hash::compute_poseidon_hash;
 
     fn make_account(sk: u64, balance: u64) -> (Fr, Account) {
         let secret_key = Fr::from(sk);

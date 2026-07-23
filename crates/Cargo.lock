@@ -382,6 +382,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "crypto-primitives"
+version = "0.1.0"
+dependencies = [
+ "ark-bn254",
+ "ark-crypto-primitives",
+ "ark-ff",
+]
+
+[[package]]
 name = "deranged"
 version = "0.5.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -923,6 +932,7 @@ dependencies = [
  "ark-bn254",
  "ark-crypto-primitives",
  "ark-ff",
+ "crypto-primitives",
 ]
 
 [[package]]
