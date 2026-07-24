@@ -12,9 +12,11 @@ use crate::gadgets::merkle;
 
 pub const TREE_DEPTH: usize = 8;
 
+pub const BATCH_SIZE: usize = 4;
+
 
 #[derive(Clone,Debug)]
-pub struct ZkRollup {
+struct TxWitness {
     // private vars (witness)
     pub sender_sk: Option<Fr>,
     pub sender_balance: Option<Fr>,
@@ -30,15 +32,23 @@ pub struct ZkRollup {
     pub receiver_merkle_siblings_side: Option<Vec<bool>>,
     pub receiver_nonce: Option<Fr>,
     pub receiver_public_key: Option<Fr>,
+}
+
+
+#[derive(Clone,Debug)]
+pub struct ZkRollup {
+    // private vars (witness)
+    pub txs: [Option<TxWitness>;BATCH_SIZE],
 
     // public vars (inputs)
     pub old_root: Option<Fr>,
     pub new_root: Option<Fr>,
+    pub batch_hash : Option<Fr>
 }
 
 impl Default for ZkRollup {
     fn default() -> Self {
-        Self { 
+        let tx = TxWitness{
             sender_sk: Some(Fr::from(0)), 
             sender_balance: Some(Fr::from(0)), 
             sender_nonce: Some(Fr::from(0)), 
@@ -51,8 +61,13 @@ impl Default for ZkRollup {
             receiver_merkle_siblings_side: Some(vec![false; TREE_DEPTH]),
             receiver_nonce: Some(Fr::from(0)), 
             receiver_public_key: Some(Fr::from(0)), 
+        };
+        let txs = core::array::from_fn(|_| Some(tx.clone()));
+        Self { 
+            txs: txs, 
             old_root: Some(Fr::from(0)), 
-            new_root: Some(Fr::from(0))
+            new_root: Some(Fr::from(0)),
+            batch_hash: Some(Fr::from(0))
         }
     }
 }
