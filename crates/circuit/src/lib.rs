@@ -1,5 +1,5 @@
 pub mod gadgets;
-// pub mod circuit;
+pub mod circuit;
 
 #[cfg(test)]
 mod tests {
