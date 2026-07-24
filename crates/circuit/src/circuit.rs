@@ -19,10 +19,15 @@ pub struct ZkRollup {
     pub sender_nonce: Option<Fr>,
     pub sender_merkle_siblings: Option<Vec<Fr>>,
     pub sender_merkle_siblings_side: Option<Vec<bool>>,
+    pub amount: Option<Fr>,
+
+    pub intermediate_root: Option<Fr>,
 
     pub receiver_balance: Option<Fr>,
     pub receiver_merkle_siblings: Option<Vec<Fr>>,
     pub receiver_merkle_siblings_side: Option<Vec<bool>>,
+    pub receiver_nonce: Option<Fr>,
+    pub receiver_public_key: Option<Fr>,
 
     // public vars (inputs)
     pub old_root: Option<Fr>,
@@ -37,9 +42,13 @@ impl Default for ZkRollup {
             sender_nonce: Some(Fr::from(0)), 
             sender_merkle_siblings: Some(vec![Fr::zero(); TREE_DEPTH]), 
             sender_merkle_siblings_side: Some(vec![false; TREE_DEPTH]),
+            amount: Some(Fr::from(0)), 
+            intermediate_root: Some(Fr::from(0)), 
             receiver_balance: Some(Fr::from(0)), 
             receiver_merkle_siblings: Some(vec![Fr::zero(); TREE_DEPTH]), 
             receiver_merkle_siblings_side: Some(vec![false; TREE_DEPTH]),
+            receiver_nonce: Some(Fr::from(0)), 
+            receiver_public_key: Some(Fr::from(0)), 
             old_root: Some(Fr::from(0)), 
             new_root: Some(Fr::from(0))
         }
@@ -65,6 +74,8 @@ impl ConstraintSynthesizer<Fr> for ZkRollup{
             .map(|side| Boolean::new_witness(cs.clone(), || Ok(*side)).unwrap())
             .collect();
 
+        let amount = FpVar::new_witness(cs.clone(), || self.amount.ok_or(SynthesisError::AssignmentMissing))?;
+        let intermediate_root = FpVar::new_witness(cs.clone(), || self.intermediate_root.ok_or(SynthesisError::AssignmentMissing))?;
         let receiver_balance = FpVar::new_witness(cs.clone(), || self.receiver_balance.ok_or(SynthesisError::AssignmentMissing))?;
 
         let receiver_merkle_siblings: Vec<FpVar<Fr>> = self.receiver_merkle_siblings
@@ -79,6 +90,8 @@ impl ConstraintSynthesizer<Fr> for ZkRollup{
             .map(|side| Boolean::new_witness(cs.clone(), || Ok(*side)).unwrap())
             .collect();
 
+        let receiver_nonce = FpVar::new_witness(cs.clone(), || self.receiver_nonce.ok_or(SynthesisError::AssignmentMissing))?;
+        let receiver_public_key = FpVar::new_witness(cs.clone(), || self.receiver_public_key.ok_or(SynthesisError::AssignmentMissing))?;
 
 
         //public inpputs
@@ -87,7 +100,7 @@ impl ConstraintSynthesizer<Fr> for ZkRollup{
 
 
 
-        
+
         //constraints
 
 
