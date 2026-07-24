@@ -1,7 +1,9 @@
+use ark_r1cs_std::fields::FieldVar;
 use ark_relations::gr1cs::{ConstraintSynthesizer, ConstraintSystemRef, SynthesisError};
 use ark_bn254::Fr;
-use ark_r1cs_std::{alloc::AllocVar, fields::fp::FpVar, boolean::Boolean, eq::EqGadget};
+use ark_r1cs_std::{alloc::AllocVar, fields::fp::FpVar, boolean::Boolean};
 use ark_ff::Zero;
+use core::cmp::Ordering;
 
 use crate::gadgets::hash;
 use crate::gadgets::merkle;
@@ -103,7 +105,29 @@ impl ConstraintSynthesizer<Fr> for ZkRollup{
 
         //constraints
 
+        // commpute public key from secret key, so proof merkle proof will be invalid if the secret key is incorrect
+        let sender_public_key = hash::poseidon_gadget(cs.clone(), &[sender_sk])?;
+        let sender_hash = hash::poseidon_gadget(cs.clone(), &[sender_public_key.clone(), sender_balance.clone(), sender_nonce.clone()])?;
 
+        // check that sender is in the tree
+        merkle::verify_merkle_proof_gadget(cs.clone(), sender_hash, &sender_merkle_siblings, &sender_merkle_siblings_side, old_root)?;
+
+        // check that sender balance >= tx amount
+        sender_balance.enforce_cmp(&amount, Ordering::Greater, true)?;
+
+        // check intermediate root after updating the the sender leaf
+        // if nonce is incorrect, the merkle proof is going to be false
+        let one = FpVar::constant(Fr::from(1));
+        let intermediate_sender_hash = hash::poseidon_gadget(cs.clone(), &[sender_public_key.clone(), sender_balance.clone() - amount.clone(), sender_nonce.clone() + one])?;
+        merkle::verify_merkle_proof_gadget(cs.clone(), intermediate_sender_hash, &sender_merkle_siblings, &sender_merkle_siblings_side, intermediate_root.clone())?;
+
+        // check that the old receiver leaf is in the intermmediate tree
+        let receiver_hash = hash::poseidon_gadget(cs.clone(), &[receiver_public_key.clone(), receiver_balance.clone(), receiver_nonce.clone()])?;
+        merkle::verify_merkle_proof_gadget(cs.clone(), receiver_hash, &receiver_merkle_siblings, &receiver_merkle_siblings_side, intermediate_root.clone())?;
+
+        // check that the new receiver leaf is in the new merkle tree
+        let new_receiver_leaf = hash::poseidon_gadget(cs.clone(), &[receiver_public_key.clone(), receiver_balance.clone() + amount.clone(), receiver_nonce.clone()])?;
+        merkle::verify_merkle_proof_gadget(cs.clone(), new_receiver_leaf, &receiver_merkle_siblings, &receiver_merkle_siblings_side, new_root.clone())?;
 
         Ok(())
     }
