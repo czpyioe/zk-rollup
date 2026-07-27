@@ -171,3 +171,216 @@ impl ConstraintSynthesizer<Fr> for ZkRollup{
         Ok(())
     }
 }
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ark_relations::gr1cs::ConstraintSystem;
+    use ark_crypto_primitives::crh::{poseidon::CRH, CRHScheme};
+    use crypto_primitives::hash::{compute_poseidon_hash, hash_account, poseidon_config};
+    use crypto_primitives::merkle::{MerkleTree, Side};
+    use crypto_primitives::types::Account;
+
+    #[derive(Clone)]
+    struct TxSpec {
+        sender_idx: usize,
+        sender_sk: Fr,
+        amount: u64,
+        receiver_idx: usize,
+        receiver_public_key: Fr,
+    }
+
+    fn native_hash(inputs: Vec<Fr>) -> Fr {
+        CRH::<Fr>::evaluate(&poseidon_config(), inputs).unwrap()
+    }
+
+    fn build_valid_batch(accounts: Vec<Account>, txs: Vec<TxSpec>) -> ZkRollup {
+        assert_eq!(txs.len(), BATCH_SIZE);
+
+        let mut tree = MerkleTree::new(TREE_DEPTH);
+        let mut accounts = accounts;
+        for account in &accounts {
+            tree.insert(hash_account(account));
+        }
+
+        let old_root = tree.root();
+        let mut running_hash = Fr::zero();
+        let mut tx_witnesses = Vec::with_capacity(BATCH_SIZE);
+
+        for tx in txs {
+            let sender = accounts[tx.sender_idx];
+            let receiver = accounts[tx.receiver_idx];
+
+            let sender_proof = tree.generate_proof(tx.sender_idx);
+            let sender_siblings: Vec<Fr> = sender_proof.siblings.iter().map(|(s, _)| *s).collect();
+            let sender_sides: Vec<bool> = sender_proof.siblings.iter().map(|(_, side)| *side == Side::Right).collect();
+
+            let updated_sender = Account {
+                pub_key_hash: sender.pub_key_hash,
+                balance: sender.balance - tx.amount,
+                nonce: sender.nonce + 1,
+            };
+            tree.update(tx.sender_idx, hash_account(&updated_sender)).unwrap();
+            let intermediate_root = tree.root();
+
+            let receiver_proof = tree.generate_proof(tx.receiver_idx);
+            let receiver_siblings: Vec<Fr> = receiver_proof.siblings.iter().map(|(s, _)| *s).collect();
+            let receiver_sides: Vec<bool> = receiver_proof.siblings.iter().map(|(_, side)| *side == Side::Right).collect();
+
+            let updated_receiver = Account {
+                pub_key_hash: receiver.pub_key_hash,
+                balance: receiver.balance + tx.amount,
+                nonce: receiver.nonce,
+            };
+            tree.update(tx.receiver_idx, hash_account(&updated_receiver)).unwrap();
+            let new_root = tree.root();
+
+            let tx_commitment = native_hash(vec![
+                sender.pub_key_hash,
+                receiver.pub_key_hash,
+                Fr::from(tx.amount),
+                Fr::from(sender.nonce),
+            ]);
+            running_hash = native_hash(vec![running_hash, tx_commitment]);
+
+            tx_witnesses.push(Some(TxWitness {
+                sender_sk: Some(tx.sender_sk),
+                sender_balance: Some(Fr::from(sender.balance)),
+                sender_nonce: Some(Fr::from(sender.nonce)),
+                sender_merkle_siblings: Some(sender_siblings),
+                sender_merkle_siblings_side: Some(sender_sides),
+                amount: Some(Fr::from(tx.amount)),
+                intermediate_root: Some(intermediate_root),
+                new_root: Some(new_root),
+                receiver_balance: Some(Fr::from(receiver.balance)),
+                receiver_merkle_siblings: Some(receiver_siblings),
+                receiver_merkle_siblings_side: Some(receiver_sides),
+                receiver_nonce: Some(Fr::from(receiver.nonce)),
+                receiver_public_key: Some(tx.receiver_public_key),
+            }));
+
+            accounts[tx.sender_idx] = updated_sender;
+            accounts[tx.receiver_idx] = updated_receiver;
+        }
+
+        ZkRollup {
+            txs: tx_witnesses.try_into().unwrap(),
+            old_root: Some(old_root),
+            new_root: Some(tree.root()),
+            batch_hash: Some(running_hash),
+        }
+    }
+
+    fn default_batch() -> ZkRollup {
+        let alice_sk = Fr::from(1u64);
+        let bob_pk = Fr::from(777u64);
+        let carol_sk = Fr::from(2u64);
+        let dave_pk = Fr::from(888u64);
+
+        let accounts = vec![
+            Account { pub_key_hash: compute_poseidon_hash(alice_sk), balance: 1_000, nonce: 0 },
+            Account { pub_key_hash: bob_pk, balance: 50, nonce: 0 },
+            Account { pub_key_hash: compute_poseidon_hash(carol_sk), balance: 500, nonce: 0 },
+            Account { pub_key_hash: dave_pk, balance: 20, nonce: 0 },
+        ];
+
+
+        let txs = vec![
+            TxSpec { sender_idx: 0, sender_sk: alice_sk, amount: 100, receiver_idx: 1, receiver_public_key: bob_pk },
+            TxSpec { sender_idx: 2, sender_sk: carol_sk, amount: 50, receiver_idx: 3, receiver_public_key: dave_pk },
+            TxSpec { sender_idx: 0, sender_sk: alice_sk, amount: 100, receiver_idx: 2, receiver_public_key: compute_poseidon_hash(carol_sk) },
+            TxSpec { sender_idx: 2, sender_sk: carol_sk, amount: 50, receiver_idx: 0, receiver_public_key: compute_poseidon_hash(alice_sk) },
+        ];
+
+        build_valid_batch(accounts, txs)
+    }
+
+    #[test]
+    fn test_batch_circuit_satisfiable() {
+        let circuit = default_batch();
+        let cs = ConstraintSystem::<Fr>::new_ref();
+        circuit.generate_constraints(cs.clone()).unwrap();
+        assert!(cs.is_satisfied().unwrap());
+    }
+
+    #[test]
+    fn test_batch_circuit_wrong_secret_key_in_middle_tx() {
+        let mut circuit = default_batch();
+        circuit.txs[2].as_mut().unwrap().sender_sk = Some(Fr::from(999u64));
+
+        let cs = ConstraintSystem::<Fr>::new_ref();
+        circuit.generate_constraints(cs.clone()).unwrap();
+        assert!(!cs.is_satisfied().unwrap());
+    }
+
+    #[test]
+    fn test_batch_circuit_wrong_sender_nonce() {
+        let mut circuit = default_batch();
+        circuit.txs[0].as_mut().unwrap().sender_nonce = Some(Fr::from(41u64));
+
+        let cs = ConstraintSystem::<Fr>::new_ref();
+        circuit.generate_constraints(cs.clone()).unwrap();
+        assert!(!cs.is_satisfied().unwrap());
+    }
+
+    #[test]
+    fn test_batch_circuit_insufficient_balance() {
+        let mut circuit = default_batch();
+        circuit.txs[0].as_mut().unwrap().amount = Some(Fr::from(9_999u64));
+
+        let cs = ConstraintSystem::<Fr>::new_ref();
+        circuit.generate_constraints(cs.clone()).unwrap();
+        assert!(!cs.is_satisfied().unwrap());
+    }
+
+    #[test]
+    fn test_batch_circuit_broken_root_chain() {
+        let mut circuit = default_batch();
+        circuit.txs[0].as_mut().unwrap().new_root = Some(Fr::from(0u64));
+
+        let cs = ConstraintSystem::<Fr>::new_ref();
+        circuit.generate_constraints(cs.clone()).unwrap();
+        assert!(!cs.is_satisfied().unwrap());
+    }
+
+    #[test]
+    fn test_batch_circuit_wrong_old_root() {
+        let mut circuit = default_batch();
+        circuit.old_root = Some(Fr::from(0u64));
+
+        let cs = ConstraintSystem::<Fr>::new_ref();
+        circuit.generate_constraints(cs.clone()).unwrap();
+        assert!(!cs.is_satisfied().unwrap());
+    }
+
+    #[test]
+    fn test_batch_circuit_wrong_new_root() {
+        let mut circuit = default_batch();
+        circuit.new_root = Some(Fr::from(0u64));
+
+        let cs = ConstraintSystem::<Fr>::new_ref();
+        circuit.generate_constraints(cs.clone()).unwrap();
+        assert!(!cs.is_satisfied().unwrap());
+    }
+
+    #[test]
+    fn test_batch_circuit_tampered_batch_hash() {
+        let mut circuit = default_batch();
+        circuit.batch_hash = Some(Fr::from(0u64));
+
+        let cs = ConstraintSystem::<Fr>::new_ref();
+        circuit.generate_constraints(cs.clone()).unwrap();
+        assert!(!cs.is_satisfied().unwrap());
+    }
+
+    #[test]
+    fn test_batch_circuit_amount_mismatched_with_tree() {
+        let mut circuit = default_batch();
+        circuit.txs[0].as_mut().unwrap().amount = Some(Fr::from(1u64));
+
+        let cs = ConstraintSystem::<Fr>::new_ref();
+        circuit.generate_constraints(cs.clone()).unwrap();
+        assert!(!cs.is_satisfied().unwrap());
+    }
+}
