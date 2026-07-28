@@ -803,6 +803,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "prover"
+version = "0.1.0"
+
+[[package]]
 name = "quote"
 version = "1.0.47"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -967,6 +971,10 @@ dependencies = [
  "serde_json",
  "time",
 ]
+
+[[package]]
+name = "setup"
+version = "0.1.0"
 
 [[package]]
 name = "sha2"
