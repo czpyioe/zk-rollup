@@ -178,7 +178,7 @@ mod tests {
     use super::*;
     use ark_relations::gr1cs::ConstraintSystem;
     use ark_crypto_primitives::crh::{poseidon::CRH, CRHScheme};
-    use crypto_primitives::hash::{compute_poseidon_hash, hash_account, poseidon_config};
+    use crypto_primitives::hash::{compute_poseidon_hash, hash_account, compute_poseidon_hash_multi_input};
     use crypto_primitives::merkle::{MerkleTree, Side};
     use crypto_primitives::types::Account;
 
@@ -189,10 +189,6 @@ mod tests {
         amount: u64,
         receiver_idx: usize,
         receiver_public_key: Fr,
-    }
-
-    fn native_hash(inputs: Vec<Fr>) -> Fr {
-        CRH::<Fr>::evaluate(&poseidon_config(), inputs).unwrap()
     }
 
     fn build_valid_batch(accounts: Vec<Account>, txs: Vec<TxSpec>) -> ZkRollup {
@@ -236,13 +232,13 @@ mod tests {
             tree.update(tx.receiver_idx, hash_account(&updated_receiver)).unwrap();
             let new_root = tree.root();
 
-            let tx_commitment = native_hash(vec![
+            let tx_commitment = compute_poseidon_hash_multi_input(vec![
                 sender.pub_key_hash,
                 receiver.pub_key_hash,
                 Fr::from(tx.amount),
                 Fr::from(sender.nonce),
             ]);
-            running_hash = native_hash(vec![running_hash, tx_commitment]);
+            running_hash = compute_poseidon_hash_multi_input(vec![running_hash, tx_commitment]);
 
             tx_witnesses.push(Some(TxWitness {
                 sender_sk: Some(tx.sender_sk),
