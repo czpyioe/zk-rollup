@@ -1005,6 +1005,7 @@ dependencies = [
  "ark-snark",
  "ark-std",
  "circuit",
+ "crypto-primitives",
  "rand",
 ]
 

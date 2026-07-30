@@ -5,6 +5,9 @@ edition = "2024"
 
 [dependencies]
 circuit = { path = "../circuit" }
+crypto-primitives = { path = "../crypto-primitives" }
+
+
 ark-bn254 = "0.6"
 ark-groth16 = "0.6"
 ark-snark = "0.6"
