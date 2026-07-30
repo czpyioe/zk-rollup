@@ -16,9 +16,10 @@ contract Rollup {
     event BatchProcessed(uint256 indexed idx, bytes32 old_root, bytes32 new_root, bytes32 batch_hash);
 
 
-    constructor(IVerifier _verifier,address _sequencer) {
+    constructor(IVerifier _verifier,address _sequencer, bytes32 _genesis_root) {
         verifier = _verifier;
         sequencer = _sequencer;
+        current_root=_genesis_root;
     }
 
     modifier onlySequencer(){
