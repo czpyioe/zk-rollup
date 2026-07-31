@@ -8,8 +8,8 @@ interface IVerifier {
 contract Rollup {
 
     IVerifier public immutable verifier;
-    uint256 index = 0;
-    bytes32 current_root;
+    uint256 public index = 0;
+    bytes32 public current_root;
 
     address immutable sequencer;
 
