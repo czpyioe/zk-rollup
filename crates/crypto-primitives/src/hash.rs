@@ -31,6 +31,13 @@ pub fn compute_poseidon_hash(input: Fr) -> Fr {
     crh_input
 }
 
+pub fn compute_poseidon_hash_multi_input(inputs: Vec<Fr>) -> Fr {
+    let cfg = poseidon_config();
+    let crh_input = CRH::<Fr>::evaluate(&cfg, inputs).unwrap();
+    crh_input
+}
+
+
 pub fn hash_left_right(left: Fr, right: Fr) -> Fr {
     let cfg = poseidon_config();
     CRH::<Fr>::evaluate(&cfg, vec![left, right]).unwrap()
