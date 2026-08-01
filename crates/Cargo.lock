@@ -822,6 +822,17 @@ dependencies = [
 [[package]]
 name = "prover"
 version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "ark-bn254",
+ "ark-ff",
+ "ark-groth16",
+ "ark-serialize",
+ "ark-snark",
+ "circuit",
+ "hex",
+ "rand",
+]
 
 [[package]]
 name = "quote"
