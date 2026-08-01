@@ -7,3 +7,6 @@ edition = "2024"
 ark-bn254 = "0.6"
 ark-crypto-primitives = { version = "0.6", features = ["crh", "ark-r1cs-std"] }
 ark-ff = "0.6"
+
+
+crypto-primitives = { path = "../crypto-primitives" }

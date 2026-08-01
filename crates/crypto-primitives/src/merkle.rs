@@ -1,6 +1,6 @@
 use ark_bn254::Fr;
 use ark_ff::Zero;
-use crate::primitives;
+use crate::hash;
 use crate::types::Error;
 
 pub struct MerkleTree{
@@ -24,10 +24,10 @@ pub struct MerkleProof {
 impl MerkleTree{
     pub fn new(depth: usize) -> Self {
         let mut zero_values = Vec::new();
-        zero_values.push(primitives::hash_left_right(Fr::zero(), Fr::zero()));
+        zero_values.push(hash::hash_left_right(Fr::zero(), Fr::zero()));
         for i in 1..=depth {
             let z = zero_values[i - 1];
-            zero_values.push(primitives::hash_left_right(z, z));
+            zero_values.push(hash::hash_left_right(z, z));
         }
 
         let nodes = (0..=depth)
@@ -43,7 +43,7 @@ impl MerkleTree{
 
         let mut parent_index = index / 2;
         for level in 1..=self.depth {
-            self.nodes[level][parent_index] = primitives::hash_left_right(
+            self.nodes[level][parent_index] = hash::hash_left_right(
                 self.nodes[level - 1][parent_index * 2],
                 self.nodes[level - 1][parent_index * 2 + 1],
             );
@@ -63,7 +63,7 @@ impl MerkleTree{
 
         let mut parent_index = index / 2;
         for level in 1..=self.depth {
-            self.nodes[level][parent_index] = primitives::hash_left_right(
+            self.nodes[level][parent_index] = hash::hash_left_right(
                 self.nodes[level - 1][parent_index * 2],
                 self.nodes[level - 1][parent_index * 2 + 1],
             );
@@ -93,8 +93,8 @@ impl MerkleTree{
         let mut current = proof.leaf;
         for (sibling, side) in &proof.siblings {
             current = match side {
-                Side::Left  => primitives::hash_left_right(current, *sibling),
-                Side::Right => primitives::hash_left_right(*sibling, current),
+                Side::Left  => hash::hash_left_right(current, *sibling),
+                Side::Right => hash::hash_left_right(*sibling, current),
             };
         }
         current == self.root()
@@ -108,7 +108,7 @@ mod tests {
     #[test]
     fn test_new_merkle_tree() {
         let tree = MerkleTree::new(4);
-        let expected_leaf = primitives::hash_left_right(Fr::zero(), Fr::zero());
+        let expected_leaf = hash::hash_left_right(Fr::zero(), Fr::zero());
         assert_eq!(tree.nodes[0].len(), 1 << 4);
         assert_eq!(tree.nodes[4].len(), 1);
         assert_eq!(tree.nodes[0][0], expected_leaf);
@@ -139,7 +139,7 @@ mod tests {
         assert_eq!(idx1, 1);
         assert_eq!(tree.nodes[0][0], Fr::from(1));
         assert_eq!(tree.nodes[0][1], Fr::from(2));
-        let expected_parent = primitives::hash_left_right(Fr::from(1), Fr::from(2));
+        let expected_parent = hash::hash_left_right(Fr::from(1), Fr::from(2));
         assert_eq!(tree.nodes[1][0], expected_parent);
     }
 
@@ -147,11 +147,11 @@ mod tests {
     #[test]
     fn test_root_empty() {
         let tree = MerkleTree::new(4);
-        let z0 = primitives::hash_left_right(Fr::zero(), Fr::zero());
-        let z1 = primitives::hash_left_right(z0, z0);
-        let z2 = primitives::hash_left_right(z1, z1);
-        let z3 = primitives::hash_left_right(z2, z2);
-        let expected_root = primitives::hash_left_right(z3, z3);
+        let z0 = hash::hash_left_right(Fr::zero(), Fr::zero());
+        let z1 = hash::hash_left_right(z0, z0);
+        let z2 = hash::hash_left_right(z1, z1);
+        let z3 = hash::hash_left_right(z2, z2);
+        let expected_root = hash::hash_left_right(z3, z3);
         assert_eq!(tree.root(), expected_root);
     }
 
@@ -159,7 +159,7 @@ mod tests {
     fn test_generate_and_verify_proof() {
         let mut tree = MerkleTree::new(4);
         let z = Fr::zero();
-        let leaf = primitives::hash_left_right(z, primitives::hash_left_right(z, z));
+        let leaf = hash::hash_left_right(z, hash::hash_left_right(z, z));
         let idx = tree.insert(leaf);
 
         let proof = tree.generate_proof(idx);
@@ -171,10 +171,10 @@ mod tests {
     fn test_verify_proof_wrong_proof() {
         let mut tree = MerkleTree::new(4);
         let z = Fr::zero();
-        let leaf = primitives::hash_left_right(z, primitives::hash_left_right(z, z));
+        let leaf = hash::hash_left_right(z, hash::hash_left_right(z, z));
         tree.insert(leaf);
 
-        let other_leaf = primitives::hash_left_right(z, z);
+        let other_leaf = hash::hash_left_right(z, z);
         let mut other_tree = MerkleTree::new(4);
         let other_idx = other_tree.insert(other_leaf);
         let wrong_proof = other_tree.generate_proof(other_idx);
@@ -186,9 +186,9 @@ mod tests {
     fn test_proof_after_multiple_inserts() {
         let mut tree = MerkleTree::new(4);
         let z = Fr::zero();
-        let leaf0 = primitives::hash_left_right(z, z);
-        let leaf1 = primitives::hash_left_right(leaf0, z);
-        let leaf2 = primitives::hash_left_right(z, leaf0);
+        let leaf0 = hash::hash_left_right(z, z);
+        let leaf1 = hash::hash_left_right(leaf0, z);
+        let leaf2 = hash::hash_left_right(z, leaf0);
 
         let idx0 = tree.insert(leaf0);
         let idx1 = tree.insert(leaf1);
