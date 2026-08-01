@@ -1,0 +1,16 @@
+[package]
+name = "sequencer"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+circuit = { path = "../circuit" }
+crypto-primitives = { path = "../crypto-primitives" }
+prover = { path = "../prover" }
+
+alloy = { version = "2", features = ["full"] }
+ark-bn254 = "0.6"
+hex = "0.4"
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+eyre = "0.6"
+dotenvy = "0.15"
