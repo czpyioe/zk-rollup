@@ -1,7 +1,5 @@
-use rand::Rng;
 use ark_bn254::{Fr, G1Affine, G2Affine};
-use ark_ff::{PrimeField, BigInteger, UniformRand};
-use ark_serialize::{CanonicalSerialize, CanonicalDeserialize};
+use ark_ff::{PrimeField, BigInteger};
 use circuit::circuit::{TxWitness,BATCH_SIZE};
 use hex;
 
