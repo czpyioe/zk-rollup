@@ -830,6 +830,7 @@ dependencies = [
  "ark-serialize",
  "ark-snark",
  "circuit",
+ "crypto-primitives",
  "hex",
  "rand",
 ]
